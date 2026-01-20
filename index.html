@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manajemen Jadwal Interaktif</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .connection-status {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .connection-status.connected {
+            background-color: rgba(76, 175, 80, 0.3);
+        }
+
+        .connection-status.disconnected {
+            background-color: rgba(244, 67, 54, 0.3);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 900px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-section {
+            background-color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-section h2 {
+            color: #2575fc;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #2575fc;
+            box-shadow: 0 0 0 3px rgba(37, 117, 252, 0.1);
+        }
+
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: #2575fc;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #1c64e0;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #218838;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .schedules-section {
+            background-color: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .section-header h2 {
+            color: #2575fc;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .schedule-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: 600px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .schedule-card {
+            background-color: #f8f9fa;
+            border-left: 5px solid #2575fc;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .schedule-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+        }
+
+        .schedule-card.completed {
+            border-left-color: #28a745;
+            opacity: 0.9;
+        }
+
+        .schedule-card.completed .schedule-title {
+            text-decoration: line-through;
+            color: #6c757d;
+        }
+
+        .schedule-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .schedule-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .schedule-meta {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .schedule-date, .schedule-time, .schedule-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .schedule-status {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .status-completed {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .schedule-description {
+            margin-top: 15px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .schedule-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .message.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .message.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .no-schedules {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+
+        .no-schedules i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            margin-top: 40px;
+            border-top: 1px solid #eee;
+        }
+
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 1.8rem;
+            color: #2575fc;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .stat-card.total {
+            border-top: 4px solid #2575fc;
+        }
+
+        .stat-card.pending {
+            border-top: 4px solid #ffc107;
+        }
+
+        .stat-card.completed {
+            border-top: 4px solid #28a745;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-calendar-alt"></i> Manajemen Jadwal</h1>
+            <p>Kelola jadwal dan aktivitas Anda dengan mudah</p>
+            <div class="connection-status" id="connectionStatus">
+                <i class="fas fa-sync-alt loader"></i> Menghubungkan ke database...
+            </div>
+        </header>
+
+        <div class="message" id="message"></div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card total">
+                <h3 id="totalCount">0</h3>
+                <p>Total Jadwal</p>
+            </div>
+            <div class="stat-card pending">
+                <h3 id="pendingCount">0</h3>
+                <p>Jadwal Tertunda</p>
+            </div>
+            <div class="stat-card completed">
+                <h3 id="completedCount">0</h3>
+                <p>Jadwal Selesai</p>
+            </div>
+        </div>
+
+        <div class="main-layout">
+            <section class="form-section">
+                <h2><i class="fas fa-plus-circle"></i> Tambah Jadwal Baru</h2>
+                <form id="scheduleForm">
+                    <div class="form-group">
+                        <label for="title">Judul Kegiatan *</label>
+                        <input type="text" id="title" name="title" placeholder="Contoh: Rapat Tim Proyek" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Deskripsi</label>
+                        <textarea id="description" name="description" rows="3" placeholder="Deskripsi detail kegiatan"></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scheduleDate">Tanggal *</label>
+                        <input type="date" id="scheduleDate" name="scheduleDate" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="scheduleTime">Waktu *</label>
+                        <input type="time" id="scheduleTime" name="scheduleTime" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="status">Status</label>
+                        <select id="status" name="status">
+                            <option value="pending">Tertunda</option>
+                            <option value="completed">Selesai</option>
+                        </select>
+                    </div>
+                    
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-save"></i> Simpan Jadwal
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="resetBtn">
+                            <i class="fas fa-redo"></i> Reset Form
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="schedules-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-list"></i> Daftar Jadwal</h2>
+                    <div class="filters">
+                        <select id="filterStatus" class="btn-secondary">
+                            <option value="all">Semua Status</option>
+                            <option value="pending">Tertunda</option>
+                            <option value="completed">Selesai</option>
+                        </select>
+                        <button class="btn btn-secondary" id="refreshBtn">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="schedule-list" id="scheduleList">
+                    <div class="no-schedules">
+                        <i class="fas fa-calendar-plus"></i>
+                        <h3>Belum ada jadwal</h3>
+                        <p>Tambahkan jadwal pertama Anda menggunakan form di samping</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>© 2023 Manajemen Jadwal Interaktif | Dibangun dengan HTML, JavaScript, dan Supabase</p>
+            <p>URL Supabase: <span id="supabaseUrl">https://xnstzyjsoeqtqjvtnbcp.supabase.co</span></p>
+        </footer>
+    </div>
+
+    <script>
+        // Konfigurasi Supabase
+        const SUPABASE_URL = 'https://xnstzyjsoeqtqjvtnbcp.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_YOOCGQBZhdGxu2LRmqcw2w_wyaEqtiQ';
+        
+        // Inisialisasi Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        
+        // Elemen DOM
+        const scheduleForm = document.getElementById('scheduleForm');
+        const scheduleList = document.getElementById('scheduleList');
+        const messageDiv = document.getElementById('message');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const filterStatus = document.getElementById('filterStatus');
+        const refreshBtn = document.getElementById('refreshBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        // Statistik
+        const totalCount = document.getElementById('totalCount');
+        const pendingCount = document.getElementById('pendingCount');
+        const completedCount = document.getElementById('completedCount');
+        
+        // State
+        let schedules = [];
+        let isEditing = false;
+        let editId = null;
+        
+        // Set tanggal minimal untuk input date (hari ini)
+        document.getElementById('scheduleDate').min = new Date().toISOString().split('T')[0];
+        
+        // Cek koneksi ke Supabase
+        async function checkConnection() {
+            try {
+                connectionStatus.innerHTML = '<i class="fas fa-sync-alt loader"></i> Menghubungkan ke database...';
+                
+                // Coba ambil data dari tabel schedules untuk mengecek koneksi
+                const { data, error } = await supabase
+                    .from('schedules')
+                    .select('*')
+                    .limit(1);
+                
+                if (error) throw error;
+                
+                connectionStatus.innerHTML = '<i class="fas fa-check-circle"></i> Terhubung ke database Supabase';
+                connectionStatus.classList.remove('disconnected');
+                connectionStatus.classList.add('connected');
+                
+                // Tampilkan pesan sukses
+                showMessage('Berhasil terhubung ke database Supabase!', 'success');
+                
+                // Muat data jadwal
+                loadSchedules();
+            } catch (error) {
+                console.error('Error connecting to Supabase:', error);
+                connectionStatus.innerHTML = `<i class="fas fa-exclamation-circle"></i> Gagal terhubung: ${error.message}`;
+                connectionStatus.classList.remove('connected');
+                connectionStatus.classList.add('disconnected');
+                
+                // Tampilkan pesan error
+                showMessage(`Gagal terhubung ke database: ${error.message}`, 'error');
+            }
+        }
+        
+        // Tampilkan pesan
+        function showMessage(text, type = 'info') {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            
+            // Sembunyikan pesan setelah 5 detik
+            setTimeout(() => {
+                messageDiv.className = 'message';
+            }, 5000);
+        }
+        
+        // Muat semua jadwal dari database
+        async function loadSchedules() {
+            try {
+                submitBtn.innerHTML = '<i class="fas fa-sync-alt loader"></i> Memuat...';
+                submitBtn.disabled = true;
+                
+                // Ambil filter status
+                const statusFilter = filterStatus.value;
+                
+                let query = supabase
+                    .from('schedules')
+                    .select('*')
+                    .order('schedule_date', { ascending: true })
+                    .order('schedule_time', { ascending: true });
+                
+                // Terapkan filter jika bukan "all"
+                if (statusFilter !== 'all') {
+                    query = query.eq('status', statusFilter);
+                }
+                
+                const { data, error } = await query;
+                
+                if (error) throw error;
+                
+                schedules = data || [];
+                
+                // Render daftar jadwal
+                renderSchedules();
+                
+                // Update statistik
+                updateStats();
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                showMessage(`Gagal memuat jadwal: ${error.message}`, 'error');
+            } finally {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Jadwal';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Render daftar jadwal ke UI
+        function renderSchedules() {
+            if (schedules.length === 0) {
+                scheduleList.innerHTML = `
+                    <div class="no-schedules">
+                        <i class="fas fa-calendar-plus"></i>
+                        <h3>Belum ada jadwal</h3>
+                        <p>Tambahkan jadwal pertama Anda menggunakan form di samping</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            scheduleList.innerHTML = '';
+            
+            schedules.forEach(schedule => {
+                const scheduleDate = new Date(schedule.schedule_date);
+                const formattedDate = scheduleDate.toLocaleDateString('id-ID', {
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric'
+                });
+                
+                const scheduleCard = document.createElement('div');
+                scheduleCard.className = `schedule-card ${schedule.status}`;
+                scheduleCard.innerHTML = `
+                    <div class="schedule-header">
+                        <h3 class="schedule-title">${schedule.title}</h3>
+                        <span class="schedule-status status-${schedule.status}">
+                            ${schedule.status === 'pending' ? '<i class="fas fa-clock"></i> Tertunda' : '<i class="fas fa-check-circle"></i> Selesai'}
+                        </span>
+                    </div>
+                    <div class="schedule-meta">
+                        <div class="schedule-date">
+                            <i class="far fa-calendar"></i> ${formattedDate}
+                        </div>
+                        <div class="schedule-time">
+                            <i class="far fa-clock"></i> ${schedule.schedule_time}
+                        </div>
+                    </div>
+                    ${schedule.description ? `
+                        <div class="schedule-description">
+                            <p>${schedule.description}</p>
+                        </div>
+                    ` : ''}
+                    <div class="schedule-actions">
+                        <button class="btn btn-success btn-toggle-status" data-id="${schedule.id}">
+                            <i class="fas fa-check"></i> Tandai ${schedule.status === 'pending' ? 'Selesai' : 'Tertunda'}
+                        </button>
+                        <button class="btn btn-primary btn-edit" data-id="${schedule.id}">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="btn btn-danger btn-delete" data-id="${schedule.id}">
+                            <i class="fas fa-trash"></i> Hapus
+                        </button>
+                    </div>
+                `;
+                
+                scheduleList.appendChild(scheduleCard);
+            });
+            
+            // Tambahkan event listener untuk tombol aksi
+            document.querySelectorAll('.btn-toggle-status').forEach(btn => {
+                btn.addEventListener('click', toggleScheduleStatus);
+            });
+            
+            document.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.addEventListener('click', editSchedule);
+            });
+            
+            document.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.addEventListener('click', deleteSchedule);
+            });
+        }
+        
+        // Update statistik
+        function updateStats() {
+            totalCount.textContent = schedules.length;
+            
+            const pendingSchedules = schedules.filter(s => s.status === 'pending').length;
+            const completedSchedules = schedules.filter(s => s.status === 'completed').length;
+            
+            pendingCount.textContent = pendingSchedules;
+            completedCount.textContent = completedSchedules;
+        }
+        
+        // Tambah atau edit jadwal
+        async function saveSchedule(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('title').value.trim();
+            const description = document.getElementById('description').value.trim();
+            const scheduleDate = document.getElementById('scheduleDate').value;
+            const scheduleTime = document.getElementById('scheduleTime').value;
+            const status = document.getElementById('status').value;
+            
+            if (!title || !scheduleDate || !scheduleTime) {
+                showMessage('Harap isi semua field yang wajib diisi!', 'error');
+                return;
+            }
+            
+            try {
+                submitBtn.innerHTML = '<i class="fas fa-sync-alt loader"></i> Menyimpan...';
+                submitBtn.disabled = true;
+                
+                const scheduleData = {
+                    title,
+                    description,
+                    schedule_date: scheduleDate,
+                    schedule_time: scheduleTime,
+                    status
+                };
+                
+                let result;
+                
+                if (isEditing && editId) {
+                    // Update jadwal yang sudah ada
+                    const { data, error } = await supabase
+                        .from('schedules')
+                        .update(scheduleData)
+                        .eq('id', editId)
+                        .select();
+                    
+                    if (error) throw error;
+                    
+                    result = data;
+                    showMessage('Jadwal berhasil diperbarui!', 'success');
+                } else {
+                    // Tambah jadwal baru
+                    const { data, error } = await supabase
+                        .from('schedules')
+                        .insert([scheduleData])
+                        .select();
+                    
+                    if (error) throw error;
+                    
+                    result = data;
+                    showMessage('Jadwal baru berhasil ditambahkan!', 'success');
+                }
+                
+                // Reset form
+                resetForm();
+                
+                // Muat ulang daftar jadwal
+                await loadSchedules();
+            } catch (error) {
+                console.error('Error saving schedule:', error);
+                showMessage(`Gagal menyimpan jadwal: ${error.message}`, 'error');
+            } finally {
+                submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Jadwal';
+                submitBtn.disabled = false;
+            }
+        }
+        
+        // Edit jadwal
+        async function editSchedule(e) {
+            const id = e.target.dataset.id;
+            const schedule = schedules.find(s => s.id == id);
+            
+            if (!schedule) return;
+            
+            // Isi form dengan data jadwal
+            document.getElementById('title').value = schedule.title;
+            document.getElementById('description').value = schedule.description || '';
+            document.getElementById('scheduleDate').value = schedule.schedule_date;
+            document.getElementById('scheduleTime').value = schedule.schedule_time;
+            document.getElementById('status').value = schedule.status;
+            
+            // Ubah mode menjadi edit
+            isEditing = true;
+            editId = schedule.id;
+            
+            // Ubah teks tombol submit
+            submitBtn.innerHTML = '<i class="fas fa-edit"></i> Perbarui Jadwal';
+            
+            // Scroll ke form
+            document.querySelector('.form-section').scrollIntoView({ behavior: 'smooth' });
+            
+            showMessage('Mengedit jadwal. Silakan perbarui data dan simpan.', 'info');
+        }
+        
+        // Hapus jadwal
+        async function deleteSchedule(e) {
+            const id = e.target.dataset.id;
+            
+            if (!confirm('Apakah Anda yakin ingin menghapus jadwal ini?')) {
+                return;
+            }
+            
+            try {
+                e.target.innerHTML = '<i class="fas fa-sync-alt loader"></i> Menghapus...';
+                e.target.disabled = true;
+                
+                const { error } = await supabase
+                    .from('schedules')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                showMessage('Jadwal berhasil dihapus!', 'success');
+                
+                // Muat ulang daftar jadwal
+                await loadSchedules();
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+                showMessage(`Gagal menghapus jadwal: ${error.message}`, 'error');
+            }
+        }
+        
+        // Toggle status jadwal (pending/completed)
+        async function toggleScheduleStatus(e) {
+            const id = e.target.dataset.id;
+            const schedule = schedules.find(s => s.id == id);
+            
+            if (!schedule) return;
+            
+            const newStatus = schedule.status === 'pending' ? 'completed' : 'pending';
+            
+            try {
+                e.target.innerHTML = '<i class="fas fa-sync-alt loader"></i> Memperbarui...';
+                e.target.disabled = true;
+                
+                const { error } = await supabase
+                    .from('schedules')
+                    .update({ status: newStatus })
+                    .eq('id', id);
+                
+                if (error) throw error;
+                
+                showMessage(`Status jadwal berhasil diubah menjadi ${newStatus === 'pending' ? 'Tertunda' : 'Selesai'}!`, 'success');
+                
+                // Muat ulang daftar jadwal
+                await loadSchedules();
+            } catch (error) {
+                console.error('Error toggling schedule status:', error);
+                showMessage(`Gagal mengubah status jadwal: ${error.message}`, 'error');
+            }
+        }
+        
+        // Reset form
+        function resetForm() {
+            scheduleForm.reset();
+            isEditing = false;
+            editId = null;
+            
+            // Set tanggal minimal ke hari ini
+            document.getElementById('scheduleDate').min = new Date().toISOString().split('T')[0];
+            
+            // Kembalikan teks tombol submit
+            submitBtn.innerHTML = '<i class="fas fa-save"></i> Simpan Jadwal';
+        }
+        
+        // Event Listeners
+        scheduleForm.addEventListener('submit', saveSchedule);
+        filterStatus.addEventListener('change', loadSchedules);
+        refreshBtn.addEventListener('click', loadSchedules);
+        resetBtn.addEventListener('click', resetForm);
+        
+        // Inisialisasi aplikasi
+        document.addEventListener('DOMContentLoaded', () => {
+            // Cek koneksi ke Supabase
+            checkConnection();
+            
+            // Set nilai default untuk input tanggal (besok)
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            document.getElementById('scheduleDate').value = tomorrow.toISOString().split('T')[0];
+            
+            // Set nilai default untuk input waktu (jam 9 pagi)
+            document.getElementById('scheduleTime').value = '09:00';
+        });
+    </script>
+</body>
+</html>
